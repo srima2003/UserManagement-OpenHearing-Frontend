@@ -1,7 +1,7 @@
 #  Project Report: User Management System
 
 ## 1. Project Overview
-This project is a full-stack **User Management System** designed to handle Create, Read, Update, and Delete (CRUD) operations for user entities. It is built using **Java 21**, **Spring Boot 3.4**, and **MySQL**, adhering to enterprise-grade best practices such as **Layered Architecture**, **DTO Pattern**, and **Soft Deletes**.
+This project is a full-stack **User Management System** designed to handle Create, Read, Update, and Delete (CRUD) operations for user entities. It is built using **Java 17**, **Spring Boot 3.4**, and **MySQL**, adhering to enterprise-grade best practices such as **Layered Architecture**, **DTO Pattern**, and **Soft Deletes**.
 
 The system features a **Dynamic Web Project Frontend (JSP)** that interacts with the backend via RESTful APIs, utilizing **Fetch API** for asynchronous data handling and **Chart.js** for data visualization.
 
