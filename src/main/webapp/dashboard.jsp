@@ -41,7 +41,7 @@
         .search-wrapper i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--header-blue); }
 
         /* Table */
-        table { width: 100%; background: white; border-collapse: collapse; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 15px; }
         thead { background-color: #e0e0e0; }
         th { text-align: left; padding: 10px 15px; font-size: 12px; font-weight: 600; color: #555; border-bottom: 1px solid #ccc; }
         td { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: middle; }
@@ -51,6 +51,14 @@
         .action-icons i { margin-right: 12px; cursor: pointer; color: #777; font-size: 14px; }
         .action-icons i:hover { color: var(--header-blue); }
         .action-icons .fa-trash:hover { color: #dc3545; }
+
+        /* Pagination */
+        .pagination-container { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #555; }
+        .pagination { display: flex; gap: 5px; }
+        .page-btn { padding: 5px 10px; border: 1px solid #ccc; background: white; cursor: pointer; border-radius: 4px; }
+        .page-btn:hover { background: #eee; }
+        .page-btn.active { background: var(--header-blue); color: white; border-color: var(--header-blue); }
+        .page-btn.disabled { color: #ccc; cursor: not-allowed; }
 
         /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; overflow-y: auto; }
@@ -69,7 +77,7 @@
 </head>
 <body>
     <div class="navbar">
-        <div class="brand"><i class="fa-solid fa-chart-pie"></i> Open Hearing</div>
+        <div class="brand"><i class="fa-solid fa-infinity"></i> Open Hearing</div>
         <div class="user-profile"><span>Admin</span><div class="avatar-circle">A</div><i class="fa-solid fa-power-off" style="cursor:pointer; margin-left:10px;" onclick="logout()"></i></div>
     </div>
 
@@ -87,7 +95,7 @@
 
         <div class="toolbar">
             <div class="filter-left">
-                <span>Show</span><select><option>100</option></select><span>entries</span>
+                <span>Showing <span id="startEntry">0</span> to <span id="endEntry">0</span> of <span id="totalEntry">0</span> entries</span>
             </div>
             <div class="search-wrapper"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Search user..." id="searchInput" onkeyup="filterTable()"></div>
         </div>
@@ -110,6 +118,11 @@
                 <tr><td colspan="9" style="text-align:center; padding:20px;">Loading data...</td></tr>
             </tbody>
         </table>
+
+        <div class="pagination-container">
+            <div></div> <div class="pagination" id="paginationControls">
+                </div>
+        </div>
     </div>
 
     <div id="userModal" class="modal">
@@ -142,6 +155,9 @@
     <script>
         const API_URL = "http://localhost:8085/api/users";
         let allUsers = [];
+        let filteredUsers = []; // Stores users after search filtering
+        let currentPage = 1;
+        const rowsPerPage = 15;
 
         document.addEventListener("DOMContentLoaded", () => {
             if(!localStorage.getItem("userToken")) window.location.href = "login.jsp";
@@ -158,24 +174,86 @@
                 if(!res.ok) throw new Error("Failed");
                 const data = await res.json();
                 allUsers = data.content;
+                filteredUsers = [...allUsers]; // Init filtered list with all users
+                
                 document.getElementById("totalUsersCount").innerText = allUsers.length;
-                renderTable(allUsers);
+                
+                // Initialize Pagination View
+                currentPage = 1;
+                displayPage(1);
+                setupPagination();
+                
             } catch(e) {
                 console.error(e);
                 document.getElementById("tableBody").innerHTML = `<tr><td colspan="9" style="text-align:center; color:red;">Connection Error</td></tr>`;
             }
         }
 
+        // --- DISPLAY PAGE (Core Pagination Logic) ---
+        function displayPage(page) {
+            currentPage = page;
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const paginatedItems = filteredUsers.slice(start, end);
+
+            // Update Info Text
+            const total = filteredUsers.length;
+            document.getElementById("startEntry").innerText = total === 0 ? 0 : start + 1;
+            document.getElementById("endEntry").innerText = Math.min(end, total);
+            document.getElementById("totalEntry").innerText = total;
+
+            renderTable(paginatedItems);
+            setupPagination(); // Re-render buttons to update active state
+        }
+
+        // --- SETUP PAGINATION BUTTONS ---
+        function setupPagination() {
+            const container = document.getElementById("paginationControls");
+            container.innerHTML = "";
+            const totalPages = Math.ceil(filteredUsers.length / rowsPerPage);
+
+            if (totalPages <= 1) return; // Hide if only 1 page
+
+            // Prev Button
+            const prevBtn = document.createElement("button");
+            prevBtn.innerText = "Prev";
+            prevBtn.classList.add("page-btn");
+            if (currentPage === 1) prevBtn.classList.add("disabled");
+            else prevBtn.onclick = () => displayPage(currentPage - 1);
+            container.appendChild(prevBtn);
+
+            // Numbered Buttons
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement("button");
+                btn.innerText = i;
+                btn.classList.add("page-btn");
+                if (i === currentPage) btn.classList.add("active");
+                btn.onclick = () => displayPage(i);
+                container.appendChild(btn);
+            }
+
+            // Next Button
+            const nextBtn = document.createElement("button");
+            nextBtn.innerText = "Next";
+            nextBtn.classList.add("page-btn");
+            if (currentPage === totalPages) nextBtn.classList.add("disabled");
+            else nextBtn.onclick = () => displayPage(currentPage + 1);
+            container.appendChild(nextBtn);
+        }
+
         // --- RENDER TABLE ---
         function renderTable(users) {
             const tbody = document.getElementById("tableBody");
             tbody.innerHTML = "";
+            
+            if (users.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px;">No users found</td></tr>`;
+                return;
+            }
+
             users.forEach(user => {
                 const avatar = `https://ui-avatars.com/api/?name=${user.name}&background=random&color=fff&size=28`;
                 const row = document.createElement("tr");
-                
-                // IMPORTANT: Since isELIgnored="true" is set, we use plain JS ${} syntax here.
-                // Do NOT add backslashes.
                 row.innerHTML = `
                     <td><input type="checkbox"></td>
                     <td><div class="user-flex"><img src="${avatar}" class="table-avatar"><strong>${user.name}</strong></div></td>
@@ -192,6 +270,20 @@
                 `;
                 tbody.appendChild(row);
             });
+        }
+
+        // --- FILTER / SEARCH ---
+        function filterTable() {
+            const query = document.getElementById("searchInput").value.toLowerCase();
+            filteredUsers = allUsers.filter(u => 
+                u.name.toLowerCase().includes(query) || 
+                u.email.toLowerCase().includes(query)
+            );
+            
+            // Reset to page 1 on search
+            currentPage = 1;
+            displayPage(1);
+            setupPagination();
         }
 
         // --- DELETE USER ---
@@ -276,12 +368,6 @@
                     alert("Error: " + JSON.stringify(err));
                 }
             } catch(e) { console.error(e); alert("Connection Error"); }
-        }
-
-        function filterTable() {
-            const query = document.getElementById("searchInput").value.toLowerCase();
-            const filtered = allUsers.filter(u => u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query));
-            renderTable(filtered);
         }
 
         function initCharts() {
